@@ -200,3 +200,4 @@ Completed tasks:
 * Branching strategy agreed
 
 The project is now ready for further development.
+
