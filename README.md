@@ -226,3 +226,27 @@ The schema includes the following entities:
 - **Watchlist** – skills tracked by users
 
 Relationships between entities were implemented using foreign keys and many-to-many associations to ensure a normalized and scalable database structure.
+
+---
+
+## Week 5 — Core Functionality (Part 1)
+
+This week focused on implementing basic CRUD operations for the main system entities using Django REST Framework.
+
+### Implemented functionality
+
+- Created API endpoints for:
+  - `Vacancy`
+  - `Skill`
+  - `Watchlist`
+
+### Access control
+
+- Regular users can:
+  - view vacancies and skills
+  - use search/filter features
+  - manage only their own watchlist
+
+- Admin users can:
+  - create, update, and delete vacancies
+  - create, update, and delete skills
