@@ -10,6 +10,8 @@ class SkillSerializer(serializers.ModelSerializer):
 
 
 class VacancySerializer(serializers.ModelSerializer):
+    skills = SkillSerializer(many=True, read_only=True)
+
     class Meta:
         model = Vacancy
         fields = "__all__"

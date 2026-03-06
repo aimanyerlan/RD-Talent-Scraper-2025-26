@@ -188,7 +188,7 @@ Development process:
 
 # Development Status
 
-**Week 2 — Environment Setup**
+## Week 2 — Environment Setup**
 
 Completed tasks:
 
@@ -250,3 +250,16 @@ This week focused on implementing basic CRUD operations for the main system enti
 - Admin users can:
   - create, update, and delete vacancies
   - create, update, and delete skills
+
+--
+
+## Week 6 — Core Functionality (Part 2)
+
+### Implemented functionality
+
+- Vacancy search by keyword
+- Filtering vacancies by location, source, and skill
+- Ordering vacancies by publication date
+- Improved API response structure for vacancy-related data
+- Added validation and ensured correct response codes for invalid requests
+
