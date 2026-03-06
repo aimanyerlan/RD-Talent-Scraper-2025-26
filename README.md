@@ -199,6 +199,8 @@ Completed tasks:
 * Code style rules defined
 * Branching strategy agreed
 
+---
+
 ## Week 3 — Authentication & Authorization
 
 Implemented JWT-based authentication using Django REST Framework.
@@ -209,3 +211,18 @@ Features:
 - Token refresh
 - Protected endpoint `/api/auth/me/`
 - Role support (user/admin)
+
+---
+
+## Week 4 — Database Design & Models
+
+The database schema for the R&D Talent Scraper was designed and implemented using Django ORM.
+
+The schema includes the following entities:
+
+- **User** – system users
+- **Vacancy** – job postings collected from external sources
+- **Skill** – technologies and competencies extracted from vacancies
+- **Watchlist** – skills tracked by users
+
+Relationships between entities were implemented using foreign keys and many-to-many associations to ensure a normalized and scalable database structure.
