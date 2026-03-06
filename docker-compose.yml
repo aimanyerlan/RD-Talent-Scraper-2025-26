@@ -1,0 +1,31 @@
+services:
+  web:
+    build: .
+    command:
+      - python
+      - backend/manage.py
+      - runserver
+      - 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - .env
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: talent_db
+      POSTGRES_USER: talent_user
+      POSTGRES_PASSWORD: talent_password
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
