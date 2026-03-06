@@ -251,7 +251,7 @@ This week focused on implementing basic CRUD operations for the main system enti
   - create, update, and delete vacancies
   - create, update, and delete skills
 
---
+---
 
 ## Week 6 — Core Functionality (Part 2)
 
@@ -263,3 +263,4 @@ This week focused on implementing basic CRUD operations for the main system enti
 - Improved API response structure for vacancy-related data
 - Added validation and ensured correct response codes for invalid requests
 
+---
