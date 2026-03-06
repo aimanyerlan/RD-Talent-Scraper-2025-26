@@ -188,7 +188,7 @@ Development process:
 
 # Development Status
 
-Current stage: **Week 2 — Environment Setup**
+**Week 2 — Environment Setup**
 
 Completed tasks:
 
@@ -199,5 +199,13 @@ Completed tasks:
 * Code style rules defined
 * Branching strategy agreed
 
-The project is now ready for further development.
+## Week 3 — Authentication & Authorization
 
+Implemented JWT-based authentication using Django REST Framework.
+
+Features:
+- User registration
+- Login with JWT tokens
+- Token refresh
+- Protected endpoint `/api/auth/me/`
+- Role support (user/admin)
