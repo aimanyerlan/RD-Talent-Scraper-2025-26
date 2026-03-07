@@ -264,3 +264,41 @@ This week focused on implementing basic CRUD operations for the main system enti
 - Added validation and ensured correct response codes for invalid requests
 
 ---
+## Week 7 — Web Scraping & Skill Extraction
+
+### Implemented functionality
+
+- Django management command for scraping HH.ru API
+- R&D vacancy detection using keyword filtering
+- Key skills extraction from HH.ru `key_skills` field
+- Automatic skill linking to vacancies via many-to-many relationship
+- Full description HTML content preservation
+- Duplicate prevention using `source` and `external_id` constraints
+
+---
+
+## Week 8 — Frontend Development
+
+### Implemented functionality
+
+- React + Vite frontend application
+- Complete UI design with modern components
+- Six main pages: Home, Vacancies, Vacancy Detail, Watchlist, Login, Register
+- Responsive design with mobile support
+- Search and filter functionality with checkboxes for skills and locations
+- Pagination (15 jobs per page)
+- Save/Remove vacancy to watchlist
+- JWT authentication integration
+- Skills modal with all available skills
+- Footer component with links and social media
+
+### Features
+
+- Modern design system with CSS variables
+- Sticky navbar with auth state management
+- Skills and locations fetched dynamically from API
+- HTML description rendering with proper formatting
+- Back navigation from watchlist to detail page
+- Conditional UI based on authentication state
+
+---
