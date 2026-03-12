@@ -302,3 +302,10 @@ This week focused on implementing basic CRUD operations for the main system enti
 - Conditional UI based on authentication state
 
 ---
+
+## Week 9 — Admin Panel
+
+- Django admin configured for User, Vacancy, Skill, VacancySkill, Watchlist
+- Added search, filters, ordering, pagination
+- Added inline editing for vacancy skills
+- Improved admin usability for content management
