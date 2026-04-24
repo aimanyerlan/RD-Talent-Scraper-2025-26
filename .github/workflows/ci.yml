@@ -109,18 +109,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Remote update & Docker Compose
-        if: ${{ secrets.DEPLOY_HOST != '' && secrets.DEPLOY_USER != '' && secrets.DEPLOY_SSH_KEY != '' && secrets.DEPLOY_PATH != '' }}
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script_stop: true
-          script: |
-            set -e
-            cd "${{ secrets.DEPLOY_PATH }}"
-            BRANCH="${{ github.ref_name }}"
-            git fetch origin "$BRANCH"
-            git reset --hard "origin/$BRANCH"
-            docker compose pull || true
-            docker compose up -d --build
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          GIT_BRANCH: ${{ github.ref_name }}
+        run: |
+          if [ -z "${DEPLOY_HOST}" ] || [ -z "${DEPLOY_USER}" ] || [ -z "${DEPLOY_SSH_KEY}" ] || [ -z "${DEPLOY_PATH}" ]; then
+            echo "::notice::Deploy skipped — set secrets DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY, DEPLOY_PATH."
+            exit 0
+          fi
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/ci_deploy_key
+          chmod 600 ~/.ssh/ci_deploy_key
+          printf '%s\n' \
+            "set -e" \
+            "cd $(printf %q "$DEPLOY_PATH")" \
+            "git fetch origin $(printf %q "$GIT_BRANCH")" \
+            "git reset --hard $(printf %q "origin/${GIT_BRANCH}")" \
+            "docker compose pull || true" \
+            "docker compose up -d --build" \
+            | ssh -i ~/.ssh/ci_deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
+                "${DEPLOY_USER}@${DEPLOY_HOST}" bash -s
+          rm -f ~/.ssh/ci_deploy_key
