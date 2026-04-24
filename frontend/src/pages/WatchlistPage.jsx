@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { fetchWatchlist, removeFromWatchlist } from "../services/api";
 import { Link } from "react-router-dom";
+import { fetchWatchlist, removeFromWatchlist } from "../services/api";
+import VacancyJobCard from "../components/VacancyJobCard";
 
 export default function WatchlistPage() {
   const [items, setItems] = useState([]);
@@ -15,7 +16,7 @@ export default function WatchlistPage() {
         const data = await fetchWatchlist();
         setItems(data.results || data || []);
       } catch (e) {
-        console.error('Watchlist error:', e);
+        console.error("Watchlist error:", e);
         setError(e.message || "Failed to load watchlist");
       } finally {
         setLoading(false);
@@ -25,101 +26,67 @@ export default function WatchlistPage() {
     loadWatchlist();
   }, []);
 
-  const handleRemove = async (watchlistItemId, vacancyTitle) => {
-    if (!window.confirm(`Remove "${vacancyTitle}" from watchlist?`)) {
-      return;
-    }
-
+  const handleRemove = async (watchlistItemId) => {
     try {
       await removeFromWatchlist(watchlistItemId);
-      setItems(items.filter(item => item.id !== watchlistItemId));
-    } catch (error) {
-      console.error('Failed to remove from watchlist:', error);
-      alert('Failed to remove vacancy from watchlist');
+      setItems((prev) => prev.filter((item) => item.id !== watchlistItemId));
+    } catch (err) {
+      console.error("Failed to remove from watchlist:", err);
+      alert("Failed to remove vacancy from watchlist");
     }
   };
 
   return (
-    <div className="container">
-      <div className="watchlist-header">
-        <h1 className="watchlist-title">Saved Jobs</h1>
-        <p className="watchlist-subtitle">
-          Your saved vacancies are listed here
-        </p>
-      </div>
-
-      {error && <div className="error-state">{error}</div>}
-
-      {loading && (
-        <div className="loading-state">Loading your saved jobs...</div>
-      )}
-
-      {!loading && !error && items.length === 0 && (
-        <div className="empty-state">
-          <div className="empty-state__icon">📋</div>
-          <h3 className="empty-state__title">No saved vacancies</h3>
-          <p className="empty-state__message">
-            Start adding vacancies to your watchlist to see them here
-          </p>
-          <Link to="/vacancies" className="btn btn--primary">
-            Browse Vacancies
+    <div className="container home-page watchlist-page">
+      <section className="home-panel home-panel--watchlist">
+        <div className="home-panel__header-row">
+          <div>
+            <h1 className="watchlist-page__title">Saved jobs</h1>
+            <p className="watchlist-page__meta">
+              {loading ? "Loading…" : `${items.length} ${items.length === 1 ? "vacancy" : "vacancies"} in your watchlist`}
+            </p>
+          </div>
+          <Link to="/vacancies" className="home-panel__link home-panel__link--large">
+            Browse vacancies →
           </Link>
         </div>
-      )}
-      
-      {!loading && !error && items.length > 0 && (
-        <div className="jobs-grid">
-          {items.map((item) => (
-            <article key={item.id} className="job-card">
-              <div className="job-card__header">
-                <div className="job-card__logo">
-                  {(item.vacancy.company || "C").slice(0, 1).toUpperCase()}
-                </div>
-                <div className="job-card__info">
-                  <h3 className="job-card__title">{item.vacancy.title}</h3>
-                  <p className="job-card__company">
-                    {item.vacancy.company || "Unknown Company"}
-                  </p>
-                </div>
-              </div>
 
-              <div className="job-card__meta">
-                <span className="job-card__location">
-                  📍 {item.vacancy.location || "Remote"}
-                </span>
-              </div>
+        {error ? <div className="error-state watchlist-page__error">{error}</div> : null}
 
-              {item.vacancy.skills && item.vacancy.skills.length > 0 && (
-                <div className="job-card__tags">
-                  {item.vacancy.skills.slice(0, 3).map((skill, idx) => (
-                    <span key={idx} className="job-tag">
-                      {typeof skill === 'string' ? skill : skill.name}
-                    </span>
-                  ))}
-                </div>
-              )}
+        {loading ? (
+          <div className="vacancies-grid vacancies-grid--redesign watchlist-page__grid">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="vacancies-card-skeleton" />
+            ))}
+          </div>
+        ) : null}
 
-              <div className="job-card__footer">
-                <Link
-                  to={`/vacancies/${item.vacancy.id}`}
-                  state={{ fromWatchlist: true }}
-                  className="job-card__date"
-                  style={{ textDecoration: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-                >
-                  View Details →
-                </Link>
-                <button
-                  onClick={() => handleRemove(item.id, item.vacancy.title)}
-                  className="btn btn--secondary"
-                  style={{ backgroundColor: '#ef4444', color: 'white', border: 'none' }}
-                >
-                  Remove
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
+        {!loading && !error && items.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-state__icon">⭐</div>
+            <h3 className="empty-state__title">No saved vacancies yet</h3>
+            <p className="empty-state__message">Save roles from the vacancies page — they will show up here.</p>
+            <Link to="/vacancies" className="btn btn--primary">
+              Browse vacancies
+            </Link>
+          </div>
+        ) : null}
+
+        {!loading && !error && items.length > 0 ? (
+          <div className="vacancies-grid vacancies-grid--redesign watchlist-page__grid">
+            {items.map((item, index) => (
+              <VacancyJobCard
+                key={item.id}
+                vacancy={item.vacancy}
+                index={index}
+                isSaved
+                detailLinkState={{ fromWatchlist: true }}
+                onBookmarkClick={() => handleRemove(item.id)}
+              />
+            ))}
+          </div>
+        ) : null}
+      </section>
     </div>
   );
 }

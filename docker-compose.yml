@@ -1,7 +1,27 @@
 services:
+  db:
+    image: postgres:15
+    env_file:
+      - .env
+    ports:
+      - "5432:5432"
+    networks:
+      - backend-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - backend-net
+
   web:
     build: .
-    command:
+    command: 
       - python
       - backend/manage.py
       - runserver
@@ -11,21 +31,30 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis: 
+        condition: service_started
     env_file:
       - .env
+    networks:
+      - backend-net
 
-  db:
-    image: postgres:15
-    environment:
-      POSTGRES_DB: talent_db
-      POSTGRES_USER: talent_user
-      POSTGRES_PASSWORD: talent_password
+  frontend:
+    build:
+      context: ./frontend
     ports:
-      - "5432:5432"
+      - "5173:80"
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    restart: unless-stopped
+    networks:
+      - backend-net
 
-  redis:
-    image: redis:7
-    ports:
-      - "6379:6379"
+volumes:
+  postgres_data:
+  
+networks:
+  backend-net:
+    driver: bridge

@@ -1,0 +1,67 @@
+stages:
+  - lint
+  - test
+  - build
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  POSTGRES_DB: talent_db_test
+  POSTGRES_USER: talent_user
+  POSTGRES_PASSWORD: talent_password
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: "5432"
+  SECRET_KEY: "gitlab-ci-not-for-production-secret-key-50-chars-minimum-xxxxx"
+  DEBUG: "False"
+  FRONTEND_URL: "http://localhost:5173"
+
+cache:
+  paths:
+    - .cache/pip
+
+backend:flake8:
+  stage: lint
+  image: python:3.12-slim
+  before_script:
+    - pip install -r requirements.txt
+  script:
+    - flake8 backend
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+
+backend:test:
+  stage: test
+  image: python:3.12-slim
+  services:
+    - name: postgres:15
+      alias: postgres
+      variables:
+        POSTGRES_DB: talent_db_test
+        POSTGRES_USER: talent_user
+        POSTGRES_PASSWORD: talent_password
+  before_script:
+    - apt-get update -qq && apt-get install -y --no-install-recommends libpq-dev gcc && rm -rf /var/lib/apt/lists/*
+    - pip install -r requirements.txt
+  script:
+    - cd backend
+    - python manage.py migrate --no-input
+    - python manage.py test --no-input -v 2
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+
+frontend:lint-build:
+  stage: build
+  image: node:20-bookworm-slim
+  script:
+    - cd frontend
+    - npm ci
+    - npm run lint
+    - npm run build
+  artifacts:
+    paths:
+      - frontend/dist/
+    expire_in: 1 week
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH

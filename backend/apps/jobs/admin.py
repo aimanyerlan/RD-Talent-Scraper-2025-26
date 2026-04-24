@@ -15,12 +15,14 @@ class VacancyAdmin(admin.ModelAdmin):
         "title",
         "company",
         "location",
+        "work_type",
+        "job_type",
         "source",
         "published_at",
         "created_at",
     )
-    search_fields = ("title", "company", "location", "description")
-    list_filter = ("source", "location", "published_at", "created_at")
+    search_fields = ("title", "company", "location", "description", "experience")
+    list_filter = ("source", "work_type", "job_type", "published_at", "created_at")
     ordering = ("-published_at",)
     readonly_fields = ("created_at",)
     date_hierarchy = "published_at"

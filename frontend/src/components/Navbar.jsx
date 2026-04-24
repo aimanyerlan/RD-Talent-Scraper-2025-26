@@ -1,23 +1,45 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { fetchMe } from "../services/api";
 
-export default function Navbar() {
+export default function Navbar({ isHomePage = false }) {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(
     Boolean(localStorage.getItem("access"))
   );
+  const [avatarSrc, setAvatarSrc] = useState("/avatars/avatar-1.jpg");
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    const checkAuth = () => {
-      setIsAuthenticated(Boolean(localStorage.getItem("access")));
+    const checkAuth = async () => {
+      const loggedIn = Boolean(localStorage.getItem("access"));
+      setIsAuthenticated(loggedIn);
+      if (loggedIn) {
+        try {
+          const me = await fetchMe();
+          setAvatarSrc(me.avatar_url || "/avatars/avatar-1.jpg");
+        } catch {
+          setAvatarSrc("/avatars/avatar-1.jpg");
+        }
+      } else {
+        setAvatarSrc("/avatars/avatar-1.jpg");
+      }
+      setMenuOpen(false);
     };
 
-    window.addEventListener("storage", checkAuth);
-    window.addEventListener("auth-changed", checkAuth);
+    const onStorage = () => checkAuth();
+    const onAuthChanged = () => checkAuth();
+    const onProfileUpdated = () => checkAuth();
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("auth-changed", onAuthChanged);
+    window.addEventListener("profile-updated", onProfileUpdated);
+    checkAuth();
 
     return () => {
-      window.removeEventListener("storage", checkAuth);
-      window.removeEventListener("auth-changed", checkAuth);
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("auth-changed", onAuthChanged);
+      window.removeEventListener("profile-updated", onProfileUpdated);
     };
   }, []);
 
@@ -25,12 +47,13 @@ export default function Navbar() {
     localStorage.removeItem("access");
     localStorage.removeItem("refresh");
     setIsAuthenticated(false);
+    setMenuOpen(false);
     window.dispatchEvent(new Event("auth-changed"));
     navigate("/login");
   };
 
   return (
-    <header className="navbar">
+    <header className={`navbar ${isHomePage ? "navbar--home" : ""}`}>
       <div className="container navbar__inner">
         <Link to="/" className="navbar__logo">
           <span className="navbar__logo-mark">R&D</span>
@@ -62,13 +85,30 @@ export default function Navbar() {
         <div className="navbar__actions">
           {!isAuthenticated ? (
             <>
-              <Link to="/login" className="btn btn--ghost">Sign in</Link>
+              <Link to="/login" className="btn btn--ghost">Log in</Link>
               <Link to="/register" className="btn btn--primary">Register</Link>
             </>
           ) : (
-            <button type="button" className="btn btn--primary" onClick={handleLogout}>
-              Logout
-            </button>
+            <div className="navbar__profile-wrap">
+              <button
+                type="button"
+                className="navbar__profile"
+                aria-label="Profile menu"
+                onClick={() => setMenuOpen((prev) => !prev)}
+              >
+                <img src={avatarSrc} alt="Profile" className="navbar__profile-image" />
+              </button>
+              {menuOpen && (
+                <div className="navbar__profile-menu">
+                  <Link to="/profile" className="navbar__profile-item" onClick={() => setMenuOpen(false)}>
+                    Profile
+                  </Link>
+                  <button type="button" className="navbar__profile-item navbar__profile-item--danger" onClick={handleLogout}>
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>

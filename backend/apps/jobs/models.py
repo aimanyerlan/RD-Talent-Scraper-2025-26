@@ -11,11 +11,44 @@ class Skill(models.Model):
 
 
 class Vacancy(models.Model):
+    class WorkType(models.TextChoices):
+        ONSITE = "onsite", "On site"
+        REMOTE = "remote", "Remote"
+        HYBRID = "hybrid", "Hybrid"
+
+    class JobType(models.TextChoices):
+        FULL_TIME = "full_time", "Full time"
+        PART_TIME = "part_time", "Part time"
+        REMOTE = "remote", "Remote"
+        INTERNSHIP = "internship", "Internship"
+        CONTRACT = "contract", "Contract"
+
     title = models.CharField(max_length=255)
     company = models.CharField(max_length=255)
     location = models.CharField(max_length=255, blank=True)
     description = models.TextField()
-    url = models.URLField(unique=True)
+    url = models.URLField(unique=True, max_length=2048)
+
+    experience = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Required experience (free text); empty if unknown.",
+    )
+    work_type = models.CharField(
+        max_length=20,
+        choices=WorkType.choices,
+        blank=True,
+        default="",
+        help_text="On site / Remote / Hybrid",
+    )
+    job_type = models.CharField(
+        max_length=20,
+        choices=JobType.choices,
+        blank=True,
+        default="",
+        help_text="Full time / Part time / Remote / Internship / Contract",
+    )
 
     source = models.CharField(max_length=50)
     external_id = models.CharField(

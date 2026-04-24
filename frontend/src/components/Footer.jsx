@@ -1,10 +1,10 @@
 import { Link } from "react-router-dom";
 
-export default function Footer() {
+export default function Footer({ isHomePage = false }) {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="footer">
+    <footer className={`footer ${isHomePage ? "footer--home" : ""}`}>
       <div className="container">
         <div className="footer__content">
           <div className="footer__section">
