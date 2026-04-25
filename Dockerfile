@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-# --- dependency wheels (needs git for VCS deps) --------------------------------
 FROM python:3.12-slim AS wheels
 
 WORKDIR /wheels
@@ -13,7 +11,6 @@ RUN pip wheel --no-cache-dir --wheel-dir /wheels/out -r requirements.txt \
     && sed "s#django-prometheus @ git+.*#django-prometheus @ file:///wheels/out/${DJANGO_PROM_WHL}#" \
         requirements.txt > /wheels/out/requirements-install.txt
 
-# --- runtime -----------------------------------------------------------------
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -57,15 +54,5 @@ RUN python backend/manage.py collectstatic --noinput --no-color
 
 EXPOSE 8000
 
-ENTRYPOINT ["/app/deploy/docker/entrypoint.sh"]
-CMD [ \
-    "gunicorn", \
-    "config.wsgi:application", \
-    "--chdir", "backend", \
-    "--bind", "0.0.0.0:8000", \
-    "--workers", "3", \
-    "--threads", "2", \
-    "--timeout", "120", \
-    "--access-logfile", "-", \
-    "--error-logfile", "-" \
-]
+ENTRYPOINT ["/bin/sh", "/app/deploy/docker/entrypoint.sh"]
+CMD ["gunicorn", "config.wsgi:application", "--chdir", "backend", "--bind", "0.0.0.0:8000", "--workers", "3", "--threads", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-"]

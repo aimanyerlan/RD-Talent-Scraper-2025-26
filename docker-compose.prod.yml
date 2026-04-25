@@ -27,7 +27,7 @@ services:
 
   celery-worker:
     build: .
-    entrypoint: ["/app/deploy/docker/entrypoint.sh"]
+    entrypoint: ["/bin/sh", "/app/deploy/docker/entrypoint.sh"]
     command:
       - celery
       - -A
