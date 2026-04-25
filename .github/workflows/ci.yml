@@ -55,6 +55,7 @@ jobs:
       POSTGRES_DB: talent_db_test
       SECRET_KEY: ci-not-for-production-secret-key-min-50-chars-xxxxxxxxxx
       DEBUG: "False"
+      ALLOWED_HOSTS: 127.0.0.1,localhost,testserver
       FRONTEND_URL: http://localhost:5173
     steps:
       - uses: actions/checkout@v4
@@ -62,11 +63,14 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
-      - run: pip install -r requirements.txt
+      - run: pip install -r requirements.txt coverage
       - run: python manage.py migrate --no-input
         working-directory: backend
-      - run: python manage.py test --no-input -v 2
+      - run: coverage run --source=apps manage.py test --no-input -v 2
         working-directory: backend
+      - name: Coverage report
+        working-directory: backend
+        run: coverage report -m
 
   frontend:
     name: Frontend (lint + build)
@@ -129,8 +133,8 @@ jobs:
             "cd $(printf %q "$DEPLOY_PATH")" \
             "git fetch origin $(printf %q "$GIT_BRANCH")" \
             "git reset --hard $(printf %q "origin/${GIT_BRANCH}")" \
-            "docker compose pull || true" \
-            "docker compose up -d --build" \
+            "docker compose -f docker-compose.yml -f docker-compose.prod.yml pull || true" \
+            "docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build" \
             | ssh -i ~/.ssh/ci_deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
                 "${DEPLOY_USER}@${DEPLOY_HOST}" bash -s
           rm -f ~/.ssh/ci_deploy_key

@@ -1,0 +1,23 @@
+name: Load test (k6)
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "API негізгі URL (жұмыс істеп тұрған сервер)"
+        required: true
+        default: "http://127.0.0.1:8000"
+
+jobs:
+  k6-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run k6 smoke against BASE_URL
+        run: |
+          docker run --rm \
+            -e BASE_URL="${{ inputs.base_url }}" \
+            -v "${{ github.workspace }}:/work" \
+            -w /work \
+            grafana/k6:latest \
+            run loadtests/k6-smoke.js

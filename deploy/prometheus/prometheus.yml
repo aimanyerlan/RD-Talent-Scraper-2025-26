@@ -1,0 +1,17 @@
+# Prometheus scrape configuration for local / Compose stacks.
+# Adjust targets when deploying behind a reverse proxy or to Kubernetes.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: django-api
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - web:8000
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: django-web

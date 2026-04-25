@@ -1,0 +1,55 @@
+# Production overlay: Gunicorn, no bind-mount, Celery worker, Prometheus multiproc.
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# Optional monitoring (same as dev):
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile monitoring up -d --build
+
+services:
+  web:
+    volumes: []
+    environment:
+      DJANGO_ENV: production
+      DEBUG: "False"
+      DJANGO_LOG_DIR: /app/logs
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus_multiproc
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-3}
+    command:
+      - sh
+      - -c
+      - |
+        exec gunicorn config.wsgi:application --chdir backend \
+          --bind 0.0.0.0:8000 \
+          --workers "${WEB_CONCURRENCY:-3}" \
+          --threads 2 \
+          --timeout 120 \
+          --access-logfile - \
+          --error-logfile -
+
+  celery-worker:
+    build: .
+    entrypoint: ["/app/deploy/docker/entrypoint.sh"]
+    command:
+      - celery
+      - -A
+      - config
+      - worker
+      - -l
+      - INFO
+    env_file:
+      - .env
+    environment:
+      DJANGO_ENV: production
+      DEBUG: "False"
+      PYTHONPATH: /app/backend
+      DJANGO_LOG_DIR: /app/logs
+      SKIP_DJANGO_MIGRATE: "1"
+    volumes: []
+    depends_on:
+      web:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    networks:
+      - backend-net

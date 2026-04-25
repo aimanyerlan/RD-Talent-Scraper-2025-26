@@ -9,6 +9,8 @@ click-didyoumean==0.3.1
 click-plugins==1.1.1.2
 click-repl==0.3.0
 Django==6.0.3
+# PyPI 2.4.1 pins Django<6; master supports Django 6.0 (see django-commons/django-prometheus).
+django-prometheus @ git+https://github.com/django-commons/django-prometheus.git@77a983e676ab85d2419ae4612852bf08837526e2
 django-cors-headers==4.9.0
 django-filter==25.2
 djangorestframework==3.16.1
@@ -40,4 +42,5 @@ tzlocal==5.3.1
 vine==5.1.0
 wcwidth==0.6.0
 requests
-google-auth
+gunicorn==23.0.0
+whitenoise==6.9.0
