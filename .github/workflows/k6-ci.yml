@@ -38,7 +38,8 @@ jobs:
       POSTGRES_DB: talent_db_k6
       SECRET_KEY: k6-ci-not-for-production-secret-key-min-50-chars-xxxxxxxxxx
       DEBUG: "False"
-      ALLOWED_HOSTS: 127.0.0.1,localhost,testserver
+      # k6 Docker контейнерінен сұрау Host: host.docker.internal болады — Django DisallowedHost=400
+      ALLOWED_HOSTS: 127.0.0.1,localhost,testserver,host.docker.internal
       FRONTEND_URL: http://localhost:5173
     steps:
       - uses: actions/checkout@v4
