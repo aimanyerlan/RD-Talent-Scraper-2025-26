@@ -1,0 +1,85 @@
+name: k6 load (API + JWT)
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: k6-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  k6-integrated:
+    name: k6 (Django + auth)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: talent_user
+          POSTGRES_PASSWORD: talent_password
+          POSTGRES_DB: talent_db_k6
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U talent_user -d talent_db_k6"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: talent_user
+      POSTGRES_PASSWORD: talent_password
+      POSTGRES_DB: talent_db_k6
+      SECRET_KEY: k6-ci-not-for-production-secret-key-min-50-chars-xxxxxxxxxx
+      DEBUG: "False"
+      ALLOWED_HOSTS: 127.0.0.1,localhost,testserver
+      FRONTEND_URL: http://localhost:5173
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python manage.py migrate --no-input
+        working-directory: backend
+      - name: Seed k6 user (active)
+        working-directory: backend
+        run: |
+          python manage.py shell -c "from django.contrib.auth import get_user_model; User=get_user_model(); e='k6_ci@example.test'; User.objects.filter(email=e).delete(); u=User.objects.create_user(email=e,username=e,full_name='K6 CI',password='K6_ci_Pass_Test_99!',is_active=True); u.role='user'; u.save()"
+      - name: Start Django
+        working-directory: backend
+        run: |
+          nohup python manage.py runserver 0.0.0.0:8000 > /tmp/django-k6.log 2>&1 &
+          echo $! > /tmp/django-k6.pid
+          ok=0
+          for i in $(seq 1 90); do
+            if curl -sf http://127.0.0.1:8000/health/ >/dev/null; then
+              ok=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ok" != 1 ]; then
+            echo "--- django log ---"
+            cat /tmp/django-k6.log || true
+            exit 1
+          fi
+      - name: Run k6
+        run: |
+          docker run --rm --add-host=host.docker.internal:host-gateway \
+            -e BASE_URL=http://host.docker.internal:8000 \
+            -e K6_LOGIN_EMAIL=k6_ci@example.test \
+            -e K6_LOGIN_PASSWORD='K6_ci_Pass_Test_99!' \
+            -v "${{ github.workspace }}:/work" -w /work \
+            grafana/k6:latest run loadtests/k6-auth.js
+      - name: Stop Django
+        if: always()
+        run: |
+          if [ -f /tmp/django-k6.pid ]; then kill "$(cat /tmp/django-k6.pid)" 2>/dev/null || true; fi

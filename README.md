@@ -68,6 +68,8 @@ rd
 └── README.md
 ```
 
+**Құжаттама:** пайдаланушы сценарийлері — [`USER_GUIDE.md`](USER_GUIDE.md). Интерактивті API: ортада сервер іске қосылғанда [`/api/docs/swagger/`](http://127.0.0.1:8000/api/docs/swagger/) және [`/api/docs/redoc/`](http://127.0.0.1:8000/api/docs/redoc/).
+
 ---
 
 # Environment Setup
@@ -401,6 +403,9 @@ Ensure the server repository path contains **both** compose files and a producti
 | `/health/`     | Liveness (no DB check)            |
 | `/health/ready/` | Readiness (`SELECT 1` on default DB) |
 | `/metrics`     | Prometheus text exposition        |
+| `/api/schema/` | OpenAPI 3 схемасы (JSON)           |
+| `/api/docs/swagger/` | Swagger UI                    |
+| `/api/docs/redoc/`   | ReDoc                         |
 
 ### Image build notes
 

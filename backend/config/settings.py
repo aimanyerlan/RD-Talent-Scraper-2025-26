@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "apps.users",
     "apps.jobs",
     "django_filters",
+    "drf_spectacular",
     "corsheaders",
     "allauth",
     "allauth.account",
@@ -76,6 +77,18 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 15,
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "R&D Talent Scraper API",
+    "DESCRIPTION": (
+        "REST API for R&D job vacancies, skills, watchlists, and JWT authentication."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SCHEMA_PATH_PREFIX": "/api",
 }
 
 MIDDLEWARE = [

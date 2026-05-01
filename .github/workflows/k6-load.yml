@@ -7,17 +7,38 @@ on:
         description: "API негізгі URL (жұмыс істеп тұрған сервер)"
         required: true
         default: "http://127.0.0.1:8000"
+      script:
+        description: "Скрипт: k6-smoke.js (тек ашық) немесе k6-auth.js (JWT опциялы)"
+        required: true
+        default: "loadtests/k6-auth.js"
+        type: choice
+        options:
+          - loadtests/k6-auth.js
+          - loadtests/k6-smoke.js
+      k6_email:
+        description: "k6-auth үшін email (бос болса — тек ашық endpoint-тер)"
+        required: false
+        default: ""
+      k6_password:
+        description: "k6-auth үшін құпия сөз (repository secrets K6_PASSWORD қолдануға болады)"
+        required: false
+        default: ""
 
 jobs:
   k6-smoke:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Run k6 smoke against BASE_URL
+      - name: Run k6 against BASE_URL
+        env:
+          K6_LOGIN_EMAIL: ${{ inputs.k6_email || secrets.K6_LOADTEST_EMAIL }}
+          K6_LOGIN_PASSWORD: ${{ inputs.k6_password || secrets.K6_LOADTEST_PASSWORD }}
         run: |
           docker run --rm \
             -e BASE_URL="${{ inputs.base_url }}" \
+            -e K6_LOGIN_EMAIL="${K6_LOGIN_EMAIL}" \
+            -e K6_LOGIN_PASSWORD="${K6_LOGIN_PASSWORD}" \
             -v "${{ github.workspace }}:/work" \
             -w /work \
             grafana/k6:latest \
-            run loadtests/k6-smoke.js
+            run "${{ inputs.script }}"
