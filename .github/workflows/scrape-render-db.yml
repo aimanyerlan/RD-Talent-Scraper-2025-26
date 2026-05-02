@@ -1,14 +1,22 @@
-# Writes to Render Postgres (LinkedIn skipped: --source hh).
+# Writes to Render Postgres via scrape_all (default: HH + LinkedIn).
 # Required secret: RENDER_DATABASE_URL (Postgres → Connect → External Database URL).
 # Optional: RENDER_DJANGO_SECRET_KEY — if unset, DEBUG=development dev SECRET_KEY is used for this job only.
 
-name: Scrape HH → Render DB
+name: Scrape → Render DB
 
 on:
   workflow_dispatch:
     inputs:
+      source:
+        description: "scrape_all --source"
+        type: choice
+        options:
+          - all
+          - hh
+          - linkedin
+        default: all
       pages:
-        description: "HH pages per run"
+        description: "Max pages (passed to HH and LinkedIn when set)"
         type: string
         default: "5"
   schedule:
@@ -33,7 +41,7 @@ jobs:
             echo "::error::Add repository secret RENDER_DATABASE_URL (Render Postgres External URL)"
             exit 1
           fi
-      - name: scrape_all (HH only)
+      - name: scrape_all
         working-directory: backend
         env:
           DATABASE_URL: ${{ secrets.RENDER_DATABASE_URL }}
@@ -44,4 +52,5 @@ jobs:
           ALLOWED_HOSTS: localhost,127.0.0.1
           DJANGO_LOG_DIR: ${{ github.workspace }}/logs
           PAGES: ${{ github.event.inputs.pages || '5' }}
-        run: python manage.py scrape_all --source hh --pages "${PAGES}"
+          SOURCE: ${{ github.event.inputs.source || 'all' }}
+        run: python manage.py scrape_all --source "${SOURCE}" --pages "${PAGES}"
