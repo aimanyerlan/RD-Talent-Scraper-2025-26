@@ -2,8 +2,10 @@
 URL configuration for config project.
 """
 
+from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
+from django.views.generic import RedirectView
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularRedocView,
@@ -13,6 +15,11 @@ from drf_spectacular.views import (
 from config.health import liveness, readiness
 
 urlpatterns = [
+    path(
+        "",
+        RedirectView.as_view(url=settings.FRONTEND_URL, permanent=False),
+        name="root-redirect",
+    ),
     path("health/", liveness, name="health-liveness"),
     path("health/ready/", readiness, name="health-readiness"),
     path("admin/", admin.site.urls),

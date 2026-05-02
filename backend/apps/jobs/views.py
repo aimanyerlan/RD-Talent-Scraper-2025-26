@@ -1,5 +1,5 @@
 from django.db import IntegrityError
-from django.db.models import Count, Max
+from django.db.models import Count
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.pagination import PageNumberPagination
 from rest_framework import filters, permissions, serializers, viewsets
@@ -33,14 +33,7 @@ class VacancyViewSet(viewsets.ModelViewSet):
     ]
     filterset_class = VacancyFilter
     search_fields = ["title", "company", "description"]
-    ordering_fields = [
-        "published_at",
-        "created_at",
-        "company",
-        "location",
-        "salary_from",
-        "salary_to",
-    ]
+    ordering_fields = ["published_at", "created_at", "company", "location"]
     ordering = ["-published_at"]
 
     def get_serializer_class(self):
@@ -51,84 +44,52 @@ class VacancyViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = Vacancy.objects.all().prefetch_related("skills")
 
+        # skills join кезінде duplicate шықпау үшін
         if self.request.query_params.get("skill"):
             queryset = queryset.distinct()
 
         return queryset
 
-    @staticmethod
-    def _validated_limit(raw_limit):
-        try:
-            limit = int(raw_limit)
-        except (TypeError, ValueError) as exc:
-            raise serializers.ValidationError({"limit": "limit must be an integer"}) from exc
-        if limit < 1 or limit > 100:
-            raise serializers.ValidationError({"limit": "limit must be between 1 and 100"})
-        return limit
-
     @action(detail=False, methods=["get"], url_path="facet-counts")
     def facet_counts(self, request):
-        job_type_rows = (
-            Vacancy.objects.values("job_type")
-            .annotate(c=Count("id", distinct=True))
-            .order_by()
-        )
-        work_type_rows = (
-            Vacancy.objects.values("work_type")
-            .annotate(c=Count("id", distinct=True))
-            .order_by()
-        )
+        qs = Vacancy.objects.all()
+        total = qs.count()
+
         job_type = {
-            (row["job_type"] or ""): row["c"] for row in job_type_rows if row["c"]
+            row["job_type"]: row["vacancy_count"]
+            for row in qs.exclude(job_type="")
+            .values("job_type")
+            .annotate(vacancy_count=Count("id"))
         }
         work_type = {
-            (row["work_type"] or ""): row["c"] for row in work_type_rows if row["c"]
+            row["work_type"]: row["vacancy_count"]
+            for row in qs.exclude(work_type="")
+            .values("work_type")
+            .annotate(vacancy_count=Count("id"))
         }
 
-        max_to = Vacancy.objects.aggregate(m=Max("salary_to"))["m"]
-        max_from = Vacancy.objects.aggregate(m=Max("salary_from"))["m"]
-        caps = [c for c in (max_to, max_from) if c is not None]
-        if caps:
-            raw_cap = int(max(caps))
-            step = 50_000
-            salary_cap = max(100_000, ((raw_cap + step - 1) // step) * step)
-        else:
-            salary_cap = 500_000
+        location_rows = qs.values("location").annotate(vacancy_count=Count("id"))
+        locations = aggregate_location_facets(location_rows, include_other=False)
 
-        locations = list(
-            Vacancy.objects.exclude(location="")
-            .values("location")
-            .annotate(vacancy_count=Count("id"))
-            .order_by("-vacancy_count", "location")[:2000]
-        )
-        experiences = list(
-            Vacancy.objects.values("experience")
-            .annotate(vacancy_count=Count("id"))
-            .order_by()
-        )
+        experience_rows = qs.values("experience").annotate(vacancy_count=Count("id"))
+        experiences = aggregate_experience_facets(experience_rows)
 
         return Response(
             {
-                "total": Vacancy.objects.count(),
+                "total": total,
                 "job_type": job_type,
                 "work_type": work_type,
-                "salary_cap": salary_cap,
-                "locations": aggregate_location_facets(locations, include_other=False),
-                "experiences": aggregate_experience_facets(experiences),
+                "locations": locations,
+                "experiences": experiences,
             }
         )
 
     @action(detail=False, methods=["get"], url_path="top-skills")
     def top_skills(self, request):
-        limit = self._validated_limit(request.query_params.get("limit", 10))
-        source = (request.query_params.get("source") or "").strip()
-
-        qs = Skill.objects.all()
-        if source:
-            qs = qs.filter(vacancies__source=source)
+        limit = int(request.query_params.get("limit", 10))
 
         skills = (
-            qs.annotate(vacancy_count=Count("vacancies", distinct=True))
+            Skill.objects.annotate(vacancy_count=Count("vacancies", distinct=True))
             .filter(vacancy_count__gt=0)
             .order_by("-vacancy_count", "name")[:limit]
         )
@@ -145,11 +106,10 @@ class VacancyViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="top-companies")
     def top_companies(self, request):
-        limit = self._validated_limit(request.query_params.get("limit", 10))
+        limit = int(request.query_params.get("limit", 10))
 
         companies = (
-            Vacancy.objects.filter(source="hh")
-            .values("company")
+            Vacancy.objects.values("company")
             .annotate(vacancy_count=Count("id"))
             .order_by("-vacancy_count", "company")[:limit]
         )
@@ -165,11 +125,10 @@ class VacancyViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="top-locations")
     def top_locations(self, request):
-        limit = self._validated_limit(request.query_params.get("limit", 10))
+        limit = int(request.query_params.get("limit", 10))
 
         locations = (
-            Vacancy.objects.filter(source="hh")
-            .values("location")
+            Vacancy.objects.values("location")
             .annotate(vacancy_count=Count("id"))
             .order_by("-vacancy_count", "location")[:limit]
         )
@@ -186,7 +145,11 @@ class VacancyViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], url_path="stats")
     def stats(self, request):
         total_vacancies = Vacancy.objects.count()
-        total_skills = Skill.objects.filter(vacancies__isnull=False).distinct().count()
+        total_skills = (
+            Skill.objects.annotate(_vc=Count("vacancies", distinct=True))
+            .filter(_vc__gt=0)
+            .count()
+        )
         total_companies = (
             Vacancy.objects.exclude(company="")
             .values("company")

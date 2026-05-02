@@ -53,6 +53,17 @@ class VacancyAPIIntegrationTests(APITestCase):
         self.assertIn("total_vacancies", data)
         self.assertGreaterEqual(data["total_vacancies"], 1)
 
+    def test_facet_counts_endpoint(self):
+        response = self.client.get("/api/vacancies/facet-counts/")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("total", data)
+        self.assertIn("job_type", data)
+        self.assertIn("work_type", data)
+        self.assertIn("locations", data)
+        self.assertIn("experiences", data)
+        self.assertGreaterEqual(data["total"], 1)
+
     def test_top_skills_invalid_limit_returns_400(self):
         response = self.client.get("/api/vacancies/top-skills/?limit=abc")
         self.assertEqual(response.status_code, 400)
