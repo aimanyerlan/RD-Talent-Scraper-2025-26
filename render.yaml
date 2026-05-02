@@ -57,7 +57,6 @@ services:
   - type: web
     name: rd-talent-web
     runtime: static
-    region: frankfurt
     branch: main
     rootDir: frontend
     buildCommand: npm ci && npm run build
