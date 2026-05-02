@@ -378,7 +378,7 @@ docker compose up --build
 **HH scraping into the Render database**
 
 - **Render Cron (`rd-talent-scrape-hh` in [`render.yaml`](render.yaml)):** runs `scrape_hh` daily at **06:00 UTC** using the same Docker image and `DATABASE_URL` as production. Cron jobs **cannot** use the `free` plan on Render (see [pricing](https://render.com/docs/cronjobs#instance-types-and-billing)); this service uses `plan: starter`. After deploy, open the cron service in the dashboard and use **Trigger Run** to test. Adjust pages via env `SCRAPE_HH_PAGES` (default `5` in [`deploy/docker/scrape_cron.sh`](deploy/docker/scrape_cron.sh)).
-- **Free option:** GitHub Actions [`.github/workflows/scrape-render-db.yml`](.github/workflows/scrape-render-db.yml) — add repository secrets `RENDER_DATABASE_URL` (Postgres **External** URL) and `RENDER_DJANGO_SECRET_KEY` (any long random string). Runs on a schedule and via **Actions → Scrape HH → Run workflow**.
+- **Free option:** GitHub Actions [`.github/workflows/scrape-render-db.yml`](.github/workflows/scrape-render-db.yml) — add secret **`RENDER_DATABASE_URL`** (Postgres **External** URL). Optional **`RENDER_DJANGO_SECRET_KEY`**; if omitted, the workflow uses `DEBUG=True` / `DJANGO_ENV=development` for that job only so Django can load settings while still writing to Render’s DB. Runs on a schedule and via **Actions → Scrape HH → Run workflow**.
 
 ### Production stack (Gunicorn + Celery + monitoring)
 

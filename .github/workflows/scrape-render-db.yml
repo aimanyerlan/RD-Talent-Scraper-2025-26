@@ -1,7 +1,6 @@
-# Writes to Render Postgres (same DB as production). LinkedIn is skipped (--source hh).
-# Secrets: Settings → Secrets and variables → Actions:
-#   RENDER_DATABASE_URL — Postgres → Connect → External Database URL
-#   RENDER_DJANGO_SECRET_KEY — any random string 50+ characters
+# Writes to Render Postgres (LinkedIn skipped: --source hh).
+# Required secret: RENDER_DATABASE_URL (Postgres → Connect → External Database URL).
+# Optional: RENDER_DJANGO_SECRET_KEY — if unset, DEBUG=development dev SECRET_KEY is used for this job only.
 
 name: Scrape HH → Render DB
 
@@ -26,14 +25,23 @@ jobs:
           cache: pip
           cache-dependency-path: requirements.txt
       - run: pip install -r requirements.txt
+      - name: Require RENDER_DATABASE_URL
+        env:
+          DATABASE_URL: ${{ secrets.RENDER_DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::Add repository secret RENDER_DATABASE_URL (Render Postgres External URL)"
+            exit 1
+          fi
       - name: scrape_all (HH only)
         working-directory: backend
         env:
           DATABASE_URL: ${{ secrets.RENDER_DATABASE_URL }}
           DATABASE_SSL_REQUIRE: "true"
           SECRET_KEY: ${{ secrets.RENDER_DJANGO_SECRET_KEY }}
-          DEBUG: "False"
-          DJANGO_ENV: production
+          DEBUG: "True"
+          DJANGO_ENV: "development"
           ALLOWED_HOSTS: localhost,127.0.0.1
+          DJANGO_LOG_DIR: ${{ github.workspace }}/logs
           PAGES: ${{ github.event.inputs.pages || '5' }}
         run: python manage.py scrape_all --source hh --pages "${PAGES}"
