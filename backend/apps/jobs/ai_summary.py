@@ -196,4 +196,3 @@ def summarize_vacancy_description(raw_description: str, max_items: int = 6) -> t
     if ai:
         return tuple(ai)
     return tuple(_heuristic_summary(text, max_items=max_items))
-

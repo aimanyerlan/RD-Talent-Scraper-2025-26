@@ -33,7 +33,8 @@ export default function Navbar({ isHomePage = false }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
-    setMobileNavOpen(false);
+    const id = window.setTimeout(() => setMobileNavOpen(false), 0);
+    return () => window.clearTimeout(id);
   }, [location.pathname]);
 
   useEffect(() => {
