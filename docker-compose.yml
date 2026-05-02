@@ -75,6 +75,35 @@ services:
     networks:
       - backend-net
 
+  # Celery: set CELERY_TASK_ALWAYS_EAGER=False in .env so tasks go through Redis.
+  celery-worker:
+    build: .
+    entrypoint: ["/bin/sh", "/app/deploy/docker/entrypoint.sh"]
+    command:
+      - celery
+      - -A
+      - config
+      - worker
+      - -l
+      - INFO
+    env_file:
+      - .env
+    environment:
+      PYTHONPATH: /app/backend
+      DJANGO_LOG_DIR: /app/logs
+      SKIP_DJANGO_MIGRATE: "1"
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      web:
+        condition: service_started
+    networks:
+      - backend-net
+
   prometheus:
     profiles: [monitoring]
     image: prom/prometheus:v2.55.1

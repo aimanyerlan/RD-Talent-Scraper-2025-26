@@ -39,7 +39,7 @@ RUN pip install --no-cache-dir --no-index --find-links=/wheels/out -r /wheels/ou
 COPY backend ./backend
 COPY deploy ./deploy
 
-RUN chmod +x /app/deploy/docker/entrypoint.sh \
+RUN chmod +x /app/deploy/docker/entrypoint.sh /app/deploy/docker/scrape_cron.sh \
     && mkdir -p /app/logs "${PROMETHEUS_MULTIPROC_DIR}" \
     && chown -R appuser:appuser /app /tmp/prometheus_multiproc
 

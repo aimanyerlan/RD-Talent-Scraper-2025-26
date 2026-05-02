@@ -375,6 +375,11 @@ docker compose up --build
 
 **Celery:** Render’s free tier does not include background workers. The blueprint sets `CELERY_TASK_ALWAYS_EAGER=True` so tasks run in the web process. For a separate worker, use a paid **Background Worker** service (same Docker image, command `celery -A config worker -l INFO`, `SKIP_DJANGO_MIGRATE=1`) and set `CELERY_TASK_ALWAYS_EAGER=False`.
 
+**HH scraping into the Render database**
+
+- **Render Cron (`rd-talent-scrape-hh` in [`render.yaml`](render.yaml)):** runs `scrape_hh` daily at **06:00 UTC** using the same Docker image and `DATABASE_URL` as production. Cron jobs **cannot** use the `free` plan on Render (see [pricing](https://render.com/docs/cronjobs#instance-types-and-billing)); this service uses `plan: starter`. After deploy, open the cron service in the dashboard and use **Trigger Run** to test. Adjust pages via env `SCRAPE_HH_PAGES` (default `5` in [`deploy/docker/scrape_cron.sh`](deploy/docker/scrape_cron.sh)).
+- **Free option:** GitHub Actions [`.github/workflows/scrape-render-db.yml`](.github/workflows/scrape-render-db.yml) — add repository secrets `RENDER_DATABASE_URL` (Postgres **External** URL) and `RENDER_DJANGO_SECRET_KEY` (any long random string). Runs on a schedule and via **Actions → Scrape HH → Run workflow**.
+
 ### Production stack (Gunicorn + Celery + monitoring)
 
 1. Copy and edit **`.env`**: set `DJANGO_ENV=production`, `DEBUG=False`, strong `SECRET_KEY`, real `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, `CSRF_TRUSTED_ORIGINS`, and TLS flags if you terminate HTTPS in front of the app (`USE_X_FORWARDED_HOST`, `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE`, `SECURE_SSL_REDIRECT`, `SECURE_HSTS_*`).

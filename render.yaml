@@ -4,6 +4,9 @@
 # After first deploy, set optional secrets in the Dashboard (GEMINI_API_KEY, GOOGLE_OAUTH_CLIENT_ID, …).
 # Free Postgres expires in 30 days; upgrade or export data for real use.
 # Background workers are not on Render’s free tier — Celery runs in-process (CELERY_TASK_ALWAYS_EAGER).
+#
+# Cron (HH scrape → same Render Postgres): requires a paid instance type (not `free`); minimum ~$1/mo per Render docs.
+# Dashboard → cron job → “Trigger Run” for a one-off test. Free alternative: `.github/workflows/scrape-render-db.yml`.
 
 services:
   - type: web
@@ -72,6 +75,34 @@ services:
     ipAllowList:
       - source: 0.0.0.0/0
         description: required-for-free-keyvalue
+
+  - type: cron
+    name: rd-talent-scrape-hh
+    runtime: docker
+    region: frankfurt
+    plan: starter
+    branch: main
+    schedule: "0 6 * * *"
+    dockerCommand: sh /app/deploy/docker/scrape_cron.sh
+    envVars:
+      - key: DJANGO_ENV
+        value: production
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        value: rd-talent-api.onrender.com,localhost,127.0.0.1
+      - key: DATABASE_SSL_REQUIRE
+        value: "true"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: rd-postgres
+          property: connectionString
+      - key: SKIP_DJANGO_MIGRATE
+        value: "1"
+      - key: SCRAPE_HH_PAGES
+        value: "5"
 
 databases:
   - name: rd-postgres
