@@ -1,12 +1,16 @@
 FROM python:3.12-slim AS wheels
 
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_DEFAULT_TIMEOUT=300
+
 WORKDIR /wheels
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip wheel --no-cache-dir --wheel-dir /wheels/out -r requirements.txt \
+RUN pip install --upgrade pip setuptools wheel \
+    && pip wheel --no-cache-dir --timeout=300 --retries=15 --wheel-dir /wheels/out -r requirements.txt \
     && DJANGO_PROM_WHL="$(basename "$(ls /wheels/out/django_prometheus-*.whl | head -n1)")" \
     && sed "s#django-prometheus @ git+.*#django-prometheus @ file:///wheels/out/${DJANGO_PROM_WHL}#" \
         requirements.txt > /wheels/out/requirements-install.txt

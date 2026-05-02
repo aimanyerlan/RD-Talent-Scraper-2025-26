@@ -362,6 +362,19 @@ docker compose up --build
 - **web** uses **Django `runserver`** with the repo bind-mounted at `/app` (hot reload).
 - **PostgreSQL** data persists in the `postgres_data` volume (earlier compose omitted this; it is now attached).
 
+### Render (Blueprint)
+
+`docker-compose.yml` / `Dockerfile` are unchanged locally. Render builds the **same** `Dockerfile` and wires **Render Postgres** + **Key Value (Redis)** through `DATABASE_URL` / `REDIS_URL`.
+
+1. Push the repo to GitHub and connect it in the [Render Dashboard](https://dashboard.render.com/).
+2. **New → Blueprint** → select the repo; Render reads [`render.yaml`](render.yaml) at the root.
+3. On first apply, set optional secrets when prompted (`GEMINI_API_KEY`, `OPENAI_API_KEY`).
+4. If your default branch is not `main`, edit `branch:` in `render.yaml` for both services (or change the branch in the dashboard).
+
+**Names and URLs:** the API service is `rd-talent-api` → `https://rd-talent-api.onrender.com`; the static frontend is `rd-talent-web` → `https://rd-talent-web.onrender.com`. If you rename services, update `ALLOWED_HOSTS`, `FRONTEND_URL`, `CORS_*`, `CSRF_*`, and `VITE_API_URL` in `render.yaml` so they stay consistent.
+
+**Celery:** Render’s free tier does not include background workers. The blueprint sets `CELERY_TASK_ALWAYS_EAGER=True` so tasks run in the web process. For a separate worker, use a paid **Background Worker** service (same Docker image, command `celery -A config worker -l INFO`, `SKIP_DJANGO_MIGRATE=1`) and set `CELERY_TASK_ALWAYS_EAGER=False`.
+
 ### Production stack (Gunicorn + Celery + monitoring)
 
 1. Copy and edit **`.env`**: set `DJANGO_ENV=production`, `DEBUG=False`, strong `SECRET_KEY`, real `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, `CSRF_TRUSTED_ORIGINS`, and TLS flags if you terminate HTTPS in front of the app (`USE_X_FORWARDED_HOST`, `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE`, `SECURE_SSL_REDIRECT`, `SECURE_HSTS_*`).
@@ -385,7 +398,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile monito
 | Grafana   | 3000        | Default login `admin` / `GRAFANA_ADMIN_PASSWORD` |
 
 - **Grafana**: datasource **Prometheus** is provisioned automatically. Dashboard **“Django API (django-prometheus)”** is loaded from `deploy/grafana/provisioning/dashboards/json/django-overview.json` (edit or replace JSON; re-provision on container recreate).
-- **Prometheus** config: `deploy/prometheus/prometheus.yml` (scrape target `web:8000`, path `/metrics`).
+- **Prometheus** config: `deploy/prometheus/prometheus.yml` (scrape target `web:8000`, path `/metrics`). **`.env` ішінде `ALLOWED_HOSTS`-қа `web` қосыңыз** — әйтпесе scrape **HTTP 400** (DisallowedHost) береді, Grafana-да дерек болмайды.
 - **Multi-worker metrics**: with Gunicorn, set `PROMETHEUS_MULTIPROC_DIR` (already set in `docker-compose.prod.yml` for `web`). The entrypoint clears that directory on each container start before workers start.
 
 ### CI / server deploy

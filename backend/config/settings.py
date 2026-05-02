@@ -9,6 +9,7 @@ import os
 import sys
 
 from django.core.exceptions import ImproperlyConfigured
+import dj_database_url
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -68,7 +69,7 @@ INSTALLED_APPS = [
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "apps.users.authentication.CookieJWTAuthentication",
     ),
     "DEFAULT_FILTER_BACKENDS": (
         "django_filters.rest_framework.DjangoFilterBackend",
@@ -125,17 +126,27 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("POSTGRES_DB", "talent_db"),
-        "USER": os.getenv("POSTGRES_USER", "talent_user"),
-        "PASSWORD": os.getenv("POSTGRES_PASSWORD", "talent_password"),
-        "HOST": os.getenv("POSTGRES_HOST", "db"),
-        "PORT": os.getenv("POSTGRES_PORT", "5432"),
-        "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "60")),
+_database_url = os.getenv("DATABASE_URL", "").strip()
+if _database_url:
+    DATABASES = {
+        "default": dj_database_url.parse(
+            _database_url,
+            conn_max_age=int(os.getenv("DB_CONN_MAX_AGE", "60")),
+            ssl_require=_env_bool("DATABASE_SSL_REQUIRE", default=False),
+        )
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("POSTGRES_DB", "talent_db"),
+            "USER": os.getenv("POSTGRES_USER", "talent_user"),
+            "PASSWORD": os.getenv("POSTGRES_PASSWORD", "talent_password"),
+            "HOST": os.getenv("POSTGRES_HOST", "db"),
+            "PORT": os.getenv("POSTGRES_PORT", "5432"),
+            "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "60")),
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -215,6 +226,12 @@ SITE_ID = 1
 REST_USE_JWT = True
 JWT_AUTH_COOKIE = "auth-cookie"
 JWT_AUTH_REFRESH_COOKIE = "refresh-cookie"
+JWT_AUTH_HTTPONLY = _env_bool("JWT_AUTH_HTTPONLY", default=True)
+JWT_AUTH_SECURE = _env_bool("JWT_AUTH_SECURE", default=False)
+JWT_AUTH_SAMESITE = os.getenv("JWT_AUTH_SAMESITE", "Lax")
+JWT_RETURN_IN_BODY = _env_bool("JWT_RETURN_IN_BODY", default=True)
+
+CORS_ALLOW_CREDENTIALS = True
 
 ACCOUNT_USER_MODEL_USERNAME_FIELD = "username"
 ACCOUNT_EMAIL_REQUIRED = True

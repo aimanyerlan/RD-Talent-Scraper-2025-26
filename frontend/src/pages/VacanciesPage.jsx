@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   addToWatchlist,
@@ -13,7 +13,7 @@ import VacancyJobCard from "../components/VacancyJobCard";
 const JOB_TYPE_OPTIONS = [
   { value: "full_time", label: "Full time" },
   { value: "part_time", label: "Part time" },
-  { value: "remote", label: "Remote (job type)" },
+
   { value: "internship", label: "Internship" },
   { value: "contract", label: "Contract" },
 ];
@@ -23,8 +23,6 @@ const WORK_TYPE_OPTIONS = [
   { value: "remote", label: "Remote" },
   { value: "hybrid", label: "Hybrid" },
 ];
-
-const DEFAULT_SALARY_CAP = 500_000;
 
 function IconSearch({ className }) {
   return (
@@ -47,27 +45,22 @@ function IconSearch({ className }) {
   );
 }
 
-function formatSalaryBarCompact(n) {
-  const v = Math.round(Number(n) || 0);
-  if (v >= 1_000_000) {
-    const m = v / 1_000_000;
-    const s = m % 1 === 0 ? m.toFixed(0) : m.toFixed(1);
-    return `${s.replace(/\.0$/, "")}M`;
-  }
-  if (v >= 1000) {
-    const k = v / 1000;
-    const s = k % 1 === 0 ? k.toFixed(0) : k.toFixed(1);
-    return `${s.replace(/\.0$/, "")}k`;
-  }
-  return String(v);
-}
-
-function buildPageList(current, total) {
+function buildPageList(current, total, maxVisible = 7) {
   if (total <= 0) return [];
-  if (total <= 9) {
+  if (total <= maxVisible) {
     return Array.from({ length: total }, (_, i) => i + 1);
   }
-  const set = new Set([1, 2, total, total - 1, current, current - 1, current + 1]);
+  const edge = 1;
+  const middleSlots = Math.max(1, maxVisible - edge * 2 - 2);
+  const half = Math.floor(middleSlots / 2);
+  let start = Math.max(2, current - half);
+  let end = Math.min(total - 1, start + middleSlots - 1);
+  if (end - start + 1 < middleSlots) {
+    start = Math.max(2, end - middleSlots + 1);
+  }
+
+  const set = new Set([1, total]);
+  for (let p = start; p <= end; p += 1) set.add(p);
   const sorted = [...set].filter((p) => p >= 1 && p <= total).sort((a, b) => a - b);
   const out = [];
   let prev = 0;
@@ -104,9 +97,6 @@ export default function VacanciesPage() {
     searchParams.get("experience_bucket") || ""
   );
   const [cityInput, setCityInput] = useState(searchParams.get("city") || "");
-  const [salaryCap, setSalaryCap] = useState(DEFAULT_SALARY_CAP);
-  const [salaryLo, setSalaryLo] = useState(0);
-  const [salaryHi, setSalaryHi] = useState(DEFAULT_SALARY_CAP);
   const [selectedSkills, setSelectedSkills] = useState(
     searchParams.get("skill") ? searchParams.get("skill").split(",").filter(Boolean) : []
   );
@@ -117,7 +107,10 @@ export default function VacanciesPage() {
     searchParams.get("work_type") ? searchParams.get("work_type").split(",").filter(Boolean) : []
   );
   const [source, setSource] = useState(searchParams.get("source") || "");
-  const [ordering, setOrdering] = useState(searchParams.get("ordering") || "-published_at");
+  const [ordering, setOrdering] = useState(() => {
+    const o = searchParams.get("ordering") || "-published_at";
+    return o === "salary_from" || o === "-salary_from" ? "-published_at" : o;
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [savedVacancyIds, setSavedVacancyIds] = useState(new Set());
@@ -130,9 +123,25 @@ export default function VacanciesPage() {
     experiences: [],
   });
   const [openFilters, setOpenFilters] = useState({ jobType: true, workType: true, skills: true });
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   const pageSize = 15;
-  const salaryStep = salaryCap > 500_000 ? 5000 : 1000;
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobile) {
+      setMobileFiltersOpen(true);
+      return;
+    }
+    setMobileFiltersOpen(false);
+    setOpenFilters({ jobType: false, workType: false, skills: false });
+  }, [isMobile]);
 
   const toggleFilter = (key) => {
     setOpenFilters((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -169,9 +178,6 @@ export default function VacanciesPage() {
           locations: facetData?.locations || [],
           experiences: facetData?.experiences || [],
         });
-        if (facetData?.salary_cap && facetData.salary_cap > 0) {
-          setSalaryCap(facetData.salary_cap);
-        }
       } catch (e) {
         console.error(e);
       }
@@ -180,21 +186,12 @@ export default function VacanciesPage() {
   }, []);
 
   useEffect(() => {
-    const cap = salaryCap;
-    const sm = searchParams.get("salary_min");
-    const sx = searchParams.get("salary_max");
-    let lo = sm ? Number(sm) : 0;
-    let hi = sx ? Number(sx) : cap;
-    if (Number.isNaN(lo)) lo = 0;
-    if (Number.isNaN(hi)) hi = cap;
-    lo = Math.max(0, Math.min(lo, cap));
-    hi = Math.max(0, Math.min(hi, cap));
-    if (hi < lo) hi = lo;
-    setSalaryLo(lo);
-    setSalaryHi(hi);
-  }, [searchParams, salaryCap]);
+    const rawOrdering = searchParams.get("ordering") || "-published_at";
+    const orderingValue =
+      rawOrdering === "salary_from" || rawOrdering === "-salary_from"
+        ? "-published_at"
+        : rawOrdering;
 
-  useEffect(() => {
     const initialParams = {
       search: searchParams.get("search") || "",
       city: searchParams.get("city") || "",
@@ -202,10 +199,8 @@ export default function VacanciesPage() {
       skill: searchParams.get("skill") || "",
       job_type: searchParams.get("job_type") || "",
       work_type: searchParams.get("work_type") || "",
-      salary_min: searchParams.get("salary_min") || "",
-      salary_max: searchParams.get("salary_max") || "",
       source: searchParams.get("source") || "",
-      ordering: searchParams.get("ordering") || "-published_at",
+      ordering: orderingValue,
       page: searchParams.get("page") || 1,
     };
 
@@ -228,8 +223,6 @@ export default function VacanciesPage() {
     if (initialParams.skill) apiParams.skill = initialParams.skill;
     if (initialParams.job_type) apiParams.job_type = initialParams.job_type;
     if (initialParams.work_type) apiParams.work_type = initialParams.work_type;
-    if (initialParams.salary_min) apiParams.salary_min = initialParams.salary_min;
-    if (initialParams.salary_max) apiParams.salary_max = initialParams.salary_max;
     if (initialParams.source) apiParams.source = initialParams.source;
     setSource(initialParams.source || "");
     loadVacancies(apiParams);
@@ -258,8 +251,6 @@ export default function VacanciesPage() {
     if (selectedJobTypes.length) params.job_type = selectedJobTypes.join(",");
     if (selectedWorkTypes.length) params.work_type = selectedWorkTypes.join(",");
     if (source) params.source = source;
-    if (salaryLo > 0) params.salary_min = String(salaryLo);
-    if (salaryHi < salaryCap) params.salary_max = String(salaryHi);
     params.ordering = ordering;
     return params;
   };
@@ -274,8 +265,6 @@ export default function VacanciesPage() {
   const handleReset = () => {
     setExperienceBucket("");
     setCityInput("");
-    setSalaryLo(0);
-    setSalaryHi(salaryCap);
     setSearchParams({ ordering: "-published_at", page: 1 });
   };
 
@@ -330,7 +319,10 @@ export default function VacanciesPage() {
 
   const totalPages = Math.ceil(totalCount / pageSize);
   const headline = search.trim() || "R&D vacancies";
-  const pageItems = buildPageList(currentPage, totalPages);
+  const pageItems = useMemo(
+    () => buildPageList(currentPage, totalPages, isMobile ? 5 : 7),
+    [currentPage, totalPages, isMobile]
+  );
 
   return (
     <div className="container vacancies-page">
@@ -378,49 +370,6 @@ export default function VacanciesPage() {
             ))}
           </select>
         </div>
-        <div className="vacancies-search-bar__divider" />
-        <div className="vacancies-search-bar__segment vacancies-search-bar__segment--salary">
-          <div className="vacancies-salary-range vacancies-salary-range--compact">
-            <div className="vacancies-salary-range__head">
-              <span className="vacancies-search-bar__salary-label">Salary</span>
-              <div className="vacancies-salary-range__values" aria-live="polite">
-                <span>{salaryLo <= 0 ? "0" : formatSalaryBarCompact(salaryLo)}</span>
-                <span className="vacancies-salary-range__dash">–</span>
-                <span>
-                  {salaryHi >= salaryCap
-                    ? `${formatSalaryBarCompact(salaryCap)}+`
-                    : formatSalaryBarCompact(salaryHi)}
-                </span>
-              </div>
-            </div>
-            <div className="vacancies-salary-range__track">
-              <input
-                type="range"
-                min={0}
-                max={salaryCap}
-                step={salaryStep}
-                value={salaryLo}
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  setSalaryLo(Math.min(v, salaryHi));
-                }}
-                aria-label="Minimum salary"
-              />
-              <input
-                type="range"
-                min={0}
-                max={salaryCap}
-                step={salaryStep}
-                value={salaryHi}
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  setSalaryHi(Math.max(v, salaryLo));
-                }}
-                aria-label="Maximum salary"
-              />
-            </div>
-          </div>
-        </div>
         <button type="submit" className="vacancies-search-bar__submit btn btn--primary">
           <IconSearch className="vacancies-search-bar__submit-icon-svg" />
           Search
@@ -428,7 +377,20 @@ export default function VacanciesPage() {
       </form>
 
       <div className="vacancies-layout vacancies-layout--redesign">
-        <aside className="vacancies-sidebar vacancies-sidebar--redesign">
+        {isMobile ? (
+          <button
+            type="button"
+            className="vacancies-mobile-filters-toggle btn btn--secondary"
+            onClick={() => setMobileFiltersOpen((prev) => !prev)}
+          >
+            {mobileFiltersOpen ? "Hide filters" : "Show filters"}
+          </button>
+        ) : null}
+        <aside
+          className={`vacancies-sidebar vacancies-sidebar--redesign${
+            isMobile && !mobileFiltersOpen ? " is-mobile-hidden" : ""
+          }`}
+        >
           <div className="vacancies-sidebar__head">
             <h2 className="vacancies-sidebar__title">Filters</h2>
             <button type="button" className="vacancies-sidebar__clear" onClick={handleReset}>
@@ -551,8 +513,6 @@ export default function VacanciesPage() {
                 <option value="-published_at">Newest</option>
                 <option value="published_at">Oldest</option>
                 <option value="company">Company A–Z</option>
-                <option value="-salary_from">Salary (high to low)</option>
-                <option value="salary_from">Salary (low to high)</option>
               </select>
             </div>
           </header>

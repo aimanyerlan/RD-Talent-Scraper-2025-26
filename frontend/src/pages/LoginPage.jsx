@@ -26,8 +26,10 @@ export default function LoginPage() {
       callback: async (response) => {
         try {
           const data = await googleLogin(response.credential);
-          localStorage.setItem("access", data.access);
-          localStorage.setItem("refresh", data.refresh);
+          if (data.access && data.refresh) {
+            localStorage.setItem("access", data.access);
+            localStorage.setItem("refresh", data.refresh);
+          }
           window.dispatchEvent(new Event("auth-changed"));
           navigate("/");
           window.location.reload();
@@ -66,8 +68,10 @@ export default function LoginPage() {
     try {
       const data = await loginUser(formData);
 
-      localStorage.setItem("access", data.access);
-      localStorage.setItem("refresh", data.refresh);
+      if (data.access && data.refresh) {
+        localStorage.setItem("access", data.access);
+        localStorage.setItem("refresh", data.refresh);
+      }
       window.dispatchEvent(new Event("auth-changed"));
       navigate("/");
       window.location.reload();
@@ -93,9 +97,7 @@ export default function LoginPage() {
         <span className="auth-brand__text">R&D Talent Scraper</span>
       </Link>
       <div className="auth-split auth-split--image">
-        <div className="auth-split__left">
-          <img src="/auth-cat.png" alt="Cat with keyboard" className="auth-split__image" />
-        </div>
+        <div className="auth-split__left" aria-hidden />
 
         <div className="auth-card auth-card--split">
           <div className="auth-card__header">

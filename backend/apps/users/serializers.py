@@ -4,6 +4,7 @@ from django.utils.http import urlsafe_base64_decode
 from rest_framework.exceptions import ValidationError
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from .security import sanitize_plain_text
 
 User = get_user_model()
 
@@ -21,6 +22,12 @@ class RegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"password_confirm": "Passwords do not match"})
         validate_password(attrs["password"])
         return attrs
+
+    def validate_full_name(self, value):
+        cleaned = sanitize_plain_text(value)
+        if not cleaned:
+            raise serializers.ValidationError("Full name cannot be empty")
+        return cleaned
 
     def create(self, validated_data):
         validated_data.pop("password_confirm")
@@ -40,6 +47,18 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
+    def validate_full_name(self, value):
+        cleaned = sanitize_plain_text(value)
+        if not cleaned:
+            raise serializers.ValidationError("Full name cannot be empty")
+        return cleaned
+
+    def validate_phone_number(self, value):
+        return sanitize_plain_text(value)
+
+    def validate_avatar_url(self, value):
+        return sanitize_plain_text(value)
+
     class Meta:
         model = User
         fields = ["id", "email", "full_name", "phone_number", "avatar_url", "role"]

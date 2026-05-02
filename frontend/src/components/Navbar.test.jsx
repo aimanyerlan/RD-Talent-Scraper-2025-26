@@ -11,6 +11,7 @@ describe("Navbar", () => {
   beforeEach(() => {
     localStorage.clear();
     vi.mocked(api.fetchMe).mockReset();
+    vi.mocked(api.logoutUser).mockReset();
   });
 
   afterEach(() => {
@@ -56,6 +57,10 @@ describe("Navbar", () => {
   it("clears tokens and navigates on logout", async () => {
     localStorage.setItem("access", "a");
     localStorage.setItem("refresh", "r");
+    vi.mocked(api.logoutUser).mockImplementation(async () => {
+      localStorage.removeItem("access");
+      localStorage.removeItem("refresh");
+    });
     vi.mocked(api.fetchMe).mockResolvedValue({
       email: "user@example.test",
       full_name: "Test User",

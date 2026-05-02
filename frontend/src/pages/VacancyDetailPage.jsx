@@ -275,6 +275,107 @@ function buildDescriptionBlocks(html) {
   return blocks.length ? blocks : [{ type: "p", text: plain }];
 }
 
+const HIGHLIGHT_KEYWORDS = [
+  "responsibil",
+  "require",
+  "must",
+  "need",
+  "qualif",
+  "experience",
+  "skill",
+  "offer",
+  "benefit",
+  "salary",
+  "paid",
+  "remote",
+  "hybrid",
+  "onsite",
+  "hour",
+  "full time",
+  "part time",
+  "contract",
+  "intern",
+];
+
+function scoreHighlight(text, sectionTitle = "") {
+  const t = text.toLowerCase();
+  const section = sectionTitle.toLowerCase();
+  let score = 0;
+  for (const key of HIGHLIGHT_KEYWORDS) {
+    if (t.includes(key)) score += 2;
+    if (section.includes(key)) score += 2;
+  }
+  if (section.includes("responsibil") || section.includes("обязан")) score += 4;
+  if (section.includes("require") || section.includes("требован")) score += 4;
+  if (section.includes("offer") || section.includes("услов")) score += 3;
+  if (/\d/.test(t)) score += 1;
+  if (t.length < 35 || t.length > 240) score -= 2;
+  return score;
+}
+
+function splitSentences(text) {
+  return text
+    .split(/(?<=[.!?])\s+/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
+function normalizeForDedup(text) {
+  return text.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, "").replace(/\s+/g, " ").trim();
+}
+
+function extractHighlights(blocks, maxItems = 6) {
+  let sectionTitle = "";
+  const candidates = [];
+
+  for (const block of blocks) {
+    if (block.type === "h3") {
+      sectionTitle = block.text || "";
+      continue;
+    }
+    if (block.type === "ul" && Array.isArray(block.items)) {
+      for (const item of block.items) {
+        candidates.push({ text: item, score: scoreHighlight(item, sectionTitle) + 2 });
+      }
+      continue;
+    }
+    if (block.type === "p" && block.text) {
+      const sentences = splitSentences(block.text);
+      const top = sentences.length > 1 ? sentences.slice(0, 2) : sentences;
+      for (const sentence of top) {
+        candidates.push({ text: sentence, score: scoreHighlight(sentence, sectionTitle) });
+      }
+    }
+  }
+
+  const seen = new Set();
+  const deduped = candidates.filter((item) => {
+    const key = normalizeForDedup(item.text);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  const selected = deduped
+    .sort((a, b) => b.score - a.score)
+    .slice(0, maxItems)
+    .map((item) => item.text);
+
+  if (selected.length) return selected;
+
+  // Fallback for very noisy descriptions.
+  const fallback = [];
+  for (const block of blocks) {
+    if (block.type === "ul" && block.items?.length) {
+      fallback.push(...block.items.slice(0, 3));
+    } else if (block.type === "p" && block.text) {
+      fallback.push(...splitSentences(block.text).slice(0, 2));
+    }
+    if (fallback.length >= maxItems) break;
+  }
+  return fallback.slice(0, maxItems);
+}
+
 export default function VacancyDetailPage() {
   const { id } = useParams();
   const location = useLocation();
@@ -360,6 +461,10 @@ export default function VacancyDetailPage() {
   }
 
   const descBlocks = buildDescriptionBlocks(vacancy.description);
+  const highlights =
+    Array.isArray(vacancy.ai_summary) && vacancy.ai_summary.length > 0
+      ? vacancy.ai_summary
+      : extractHighlights(descBlocks);
   const publishedLabel = vacancy.published_at
     ? new Date(vacancy.published_at).toLocaleDateString("en-US", {
         year: "numeric",
@@ -457,27 +562,15 @@ export default function VacancyDetailPage() {
         </section>
 
         <section className="vacancy-detail__section">
-          <h2 className="vacancy-detail__section-title">Job description</h2>
-          <div className="vacancy-detail__description-body">
-            {descBlocks.map((blk, i) =>
-              blk.type === "h3" ? (
-                <h3 key={i} className="vacancy-detail__desc-h3">
-                  {blk.text}
-                </h3>
-              ) : blk.type === "p" ? (
-                <p key={i} className="vacancy-detail__desc-p">
-                  {blk.text}
-                </p>
-              ) : (
-                <ul key={i} className="vacancy-detail__desc-ul">
-                  {blk.items.map((item, j) => (
-                    <li key={j} className="vacancy-detail__desc-li">
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              )
-            )}
+          <h2 className="vacancy-detail__section-title">Key highlights</h2>
+          <div className="vacancy-detail__highlights-box">
+            <ul className="vacancy-detail__highlights-list">
+              {highlights.map((item, idx) => (
+                <li key={idx} className="vacancy-detail__highlights-item">
+                  {item}
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
 

@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from .ai_summary import summarize_vacancy_description
 from .facet_normalize import experience_ui_label
 from .models import Skill, Vacancy, Watchlist
 
@@ -51,9 +52,13 @@ class VacancyListSerializer(BaseVacancySerializer):
 class VacancyDetailSerializer(BaseVacancySerializer):
     skills = SkillSerializer(many=True, read_only=True)
     experience_label = serializers.SerializerMethodField()
+    ai_summary = serializers.SerializerMethodField()
 
     def get_experience_label(self, obj):
         return experience_ui_label(obj.experience)
+
+    def get_ai_summary(self, obj):
+        return list(summarize_vacancy_description(obj.description or ""))
 
     class Meta:
         model = Vacancy
@@ -76,6 +81,7 @@ class VacancyDetailSerializer(BaseVacancySerializer):
             "work_type",
             "job_type",
             "skills",
+            "ai_summary",
         ]
 
 class WatchlistSerializer(serializers.ModelSerializer):

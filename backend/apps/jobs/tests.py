@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.test import SimpleTestCase
 from django.utils import timezone
 from rest_framework.test import APITestCase
@@ -41,6 +43,8 @@ class VacancyAPIIntegrationTests(APITestCase):
         response = self.client.get(f"/api/vacancies/{self.vacancy.pk}/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["title"], "R&D Scientist")
+        self.assertIn("ai_summary", response.json())
+        self.assertIsInstance(response.json()["ai_summary"], list)
 
     def test_stats_endpoint(self):
         response = self.client.get("/api/vacancies/stats/")
@@ -48,3 +52,51 @@ class VacancyAPIIntegrationTests(APITestCase):
         data = response.json()
         self.assertIn("total_vacancies", data)
         self.assertGreaterEqual(data["total_vacancies"], 1)
+
+    def test_top_skills_invalid_limit_returns_400(self):
+        response = self.client.get("/api/vacancies/top-skills/?limit=abc")
+        self.assertEqual(response.status_code, 400)
+
+    def test_salary_filter_includes_vacancies_without_salary(self):
+        """Rows with both salary fields null must not disappear when a salary range is applied."""
+        response = self.client.get("/api/vacancies/?salary_min=1&salary_max=999999")
+        self.assertEqual(response.status_code, 200)
+        ids = {row["id"] for row in response.json()["results"]}
+        self.assertIn(self.vacancy.pk, ids)
+
+    def test_salary_min_excludes_low_paid_when_salary_known(self):
+        paid = Vacancy.objects.create(
+            title="Paid role",
+            company="Co",
+            location="X",
+            description="Desc",
+            url="https://example.com/vacancies/ci-test-paid",
+            source="ci_test",
+            external_id="ci-paid",
+            published_at=timezone.now(),
+            salary_from=Decimal("50000.00"),
+            salary_to=Decimal("80000.00"),
+        )
+        response = self.client.get("/api/vacancies/?salary_min=100000")
+        self.assertEqual(response.status_code, 200)
+        ids = {row["id"] for row in response.json()["results"]}
+        self.assertNotIn(paid.pk, ids)
+        self.assertIn(self.vacancy.pk, ids)
+
+    def test_salary_max_excludes_high_paid_when_salary_known(self):
+        paid = Vacancy.objects.create(
+            title="Senior role",
+            company="Co",
+            location="X",
+            description="Desc",
+            url="https://example.com/vacancies/ci-test-senior",
+            source="ci_test",
+            external_id="ci-senior",
+            published_at=timezone.now(),
+            salary_from=Decimal("300000.00"),
+            salary_to=Decimal("400000.00"),
+        )
+        response = self.client.get("/api/vacancies/?salary_max=200000")
+        self.assertEqual(response.status_code, 200)
+        ids = {row["id"] for row in response.json()["results"]}
+        self.assertNotIn(paid.pk, ids)

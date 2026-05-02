@@ -56,6 +56,16 @@ class VacancyViewSet(viewsets.ModelViewSet):
 
         return queryset
 
+    @staticmethod
+    def _validated_limit(raw_limit):
+        try:
+            limit = int(raw_limit)
+        except (TypeError, ValueError) as exc:
+            raise serializers.ValidationError({"limit": "limit must be an integer"}) from exc
+        if limit < 1 or limit > 100:
+            raise serializers.ValidationError({"limit": "limit must be between 1 and 100"})
+        return limit
+
     @action(detail=False, methods=["get"], url_path="facet-counts")
     def facet_counts(self, request):
         job_type_rows = (
@@ -110,7 +120,7 @@ class VacancyViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="top-skills")
     def top_skills(self, request):
-        limit = int(request.query_params.get("limit", 10))
+        limit = self._validated_limit(request.query_params.get("limit", 10))
         source = (request.query_params.get("source") or "").strip()
 
         qs = Skill.objects.all()
@@ -135,7 +145,7 @@ class VacancyViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="top-companies")
     def top_companies(self, request):
-        limit = int(request.query_params.get("limit", 10))
+        limit = self._validated_limit(request.query_params.get("limit", 10))
 
         companies = (
             Vacancy.objects.filter(source="hh")
@@ -155,7 +165,7 @@ class VacancyViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="top-locations")
     def top_locations(self, request):
-        limit = int(request.query_params.get("limit", 10))
+        limit = self._validated_limit(request.query_params.get("limit", 10))
 
         locations = (
             Vacancy.objects.filter(source="hh")

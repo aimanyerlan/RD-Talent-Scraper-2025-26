@@ -70,7 +70,9 @@ class VacancyFilter(django_filters.FilterSet):
             v = Decimal(str(value))
         except (InvalidOperation, TypeError, ValueError):
             return queryset
-        return queryset.filter(Q(salary_to__gte=v) | Q(salary_from__gte=v))
+        no_salary = Q(salary_from__isnull=True, salary_to__isnull=True)
+        in_range = Q(salary_to__gte=v) | Q(salary_from__gte=v)
+        return queryset.filter(no_salary | in_range)
 
     def filter_salary_max(self, queryset, name, value):
         if value is None:
@@ -79,4 +81,6 @@ class VacancyFilter(django_filters.FilterSet):
             v = Decimal(str(value))
         except (InvalidOperation, TypeError, ValueError):
             return queryset
-        return queryset.filter(Q(salary_from__lte=v) | Q(salary_to__lte=v))
+        no_salary = Q(salary_from__isnull=True, salary_to__isnull=True)
+        in_range = Q(salary_from__lte=v) | Q(salary_to__lte=v)
+        return queryset.filter(no_salary | in_range)

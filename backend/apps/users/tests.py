@@ -29,6 +29,22 @@ class RegisterAPIIntegrationTests(APITestCase):
         user = User.objects.get(email=email)
         self.assertFalse(user.is_active)
 
+    def test_register_sanitizes_full_name(self):
+        email = f"ci_reg_{uuid.uuid4().hex[:12]}@example.test"
+        response = self.client.post(
+            "/api/auth/register/",
+            {
+                "full_name": "  <b>CI</b>   User  ",
+                "email": email,
+                "password": "VerySecurePass123!",
+                "password_confirm": "VerySecurePass123!",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        user = User.objects.get(email=email)
+        self.assertEqual(user.full_name, "CI User")
+
 
 @override_settings(
     EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",

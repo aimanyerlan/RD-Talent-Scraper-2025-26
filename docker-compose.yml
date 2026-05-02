@@ -29,7 +29,6 @@ services:
 
   web:
     build: .
-    # sh: bind-mount .:/app may drop +x on entrypoint.sh on some hosts
     entrypoint: ["/bin/sh", "/app/deploy/docker/entrypoint.sh"]
     command:
       - python

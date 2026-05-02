@@ -67,9 +67,7 @@ export default function RegisterPage() {
         <span className="auth-brand__text">R&D Talent Scraper</span>
       </Link>
       <div className="auth-split auth-split--image">
-        <div className="auth-split__left">
-          <img src="/auth-cat.png" alt="Cat with keyboard" className="auth-split__image" />
-        </div>
+        <div className="auth-split__left" aria-hidden />
 
         <div className="auth-card auth-card--split">
           <div className="auth-card__header">

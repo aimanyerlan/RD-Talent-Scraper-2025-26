@@ -1,4 +1,11 @@
-const API_BASE_URL = "http://localhost:8000/api";
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL?.trim() || "http://localhost:8000/api";
+const USE_COOKIE_AUTH = import.meta.env.VITE_USE_COOKIE_AUTH === "true";
+
+function clearLocalAuthTokens() {
+  localStorage.removeItem("access");
+  localStorage.removeItem("refresh");
+}
 
 function extractApiError(data, fallback) {
   if (!data || typeof data !== "object") {
@@ -18,6 +25,9 @@ function extractApiError(data, fallback) {
 }
 
 function getAuthHeaders() {
+  if (USE_COOKIE_AUTH) {
+    return {};
+  }
   const token = localStorage.getItem("access");
 
   if (!token) {
@@ -29,14 +39,57 @@ function getAuthHeaders() {
   };
 }
 
+function getCsrfTokenFromCookie() {
+  const csrfCookie = document.cookie
+    .split("; ")
+    .find((part) => part.startsWith("csrftoken="));
+  return csrfCookie ? decodeURIComponent(csrfCookie.split("=")[1]) : "";
+}
+
+async function ensureCsrfCookie() {
+  if (!USE_COOKIE_AUTH) {
+    return;
+  }
+  await fetch(`${API_BASE_URL}/auth/csrf/`, {
+    method: "GET",
+    credentials: "include",
+  });
+}
+
+function withAuthFetchOptions(options = {}, { needsCsrf = false } = {}) {
+  const next = {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+    },
+  };
+  if (USE_COOKIE_AUTH) {
+    next.credentials = "include";
+    if (needsCsrf) {
+      const csrfToken = getCsrfTokenFromCookie();
+      if (csrfToken) {
+        next.headers["X-CSRFToken"] = csrfToken;
+      }
+    }
+  }
+  return next;
+}
+
 export async function loginUser(credentials) {
-  const response = await fetch(`${API_BASE_URL}/auth/login/`, {
+  await ensureCsrfCookie();
+  const response = await fetch(
+    `${API_BASE_URL}/auth/login/`,
+    withAuthFetchOptions(
+      {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(credentials),
-  });
+      },
+      { needsCsrf: true },
+    ),
+  );
 
   const data = await response.json().catch(() => ({}));
 
@@ -48,13 +101,20 @@ export async function loginUser(credentials) {
 }
 
 export async function googleLogin(credential) {
-  const response = await fetch(`${API_BASE_URL}/auth/google/`, {
+  await ensureCsrfCookie();
+  const response = await fetch(
+    `${API_BASE_URL}/auth/google/`,
+    withAuthFetchOptions(
+      {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ credential }),
-  });
+      },
+      { needsCsrf: true },
+    ),
+  );
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -64,13 +124,20 @@ export async function googleLogin(credential) {
 }
 
 export async function registerUser(formData) {
-  const response = await fetch(`${API_BASE_URL}/auth/register/`, {
+  await ensureCsrfCookie();
+  const response = await fetch(
+    `${API_BASE_URL}/auth/register/`,
+    withAuthFetchOptions(
+      {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(formData),
-  });
+      },
+      { needsCsrf: true },
+    ),
+  );
   
   const data = await response.json().catch(() => ({}));
 
@@ -82,62 +149,97 @@ export async function registerUser(formData) {
 }
 
 export async function verifyEmail(uid, token) {
-  const response = await fetch(`${API_BASE_URL}/auth/verify-email/`, {
+  await ensureCsrfCookie();
+  const response = await fetch(
+    `${API_BASE_URL}/auth/verify-email/`,
+    withAuthFetchOptions(
+      {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ uid, token }),
-  });
+      },
+      { needsCsrf: true },
+    ),
+  );
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(extractApiError(data, "Email verification failed"));
   return data;
 }
 
 export async function requestPasswordReset(email) {
-  const response = await fetch(`${API_BASE_URL}/auth/password-reset/`, {
+  await ensureCsrfCookie();
+  const response = await fetch(
+    `${API_BASE_URL}/auth/password-reset/`,
+    withAuthFetchOptions(
+      {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
-  });
+      },
+      { needsCsrf: true },
+    ),
+  );
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(extractApiError(data, "Password reset request failed"));
   return data;
 }
 
 export async function resetPassword({ uid, token, new_password, password_confirm }) {
-  const response = await fetch(`${API_BASE_URL}/auth/password-reset-confirm/`, {
+  await ensureCsrfCookie();
+  const response = await fetch(
+    `${API_BASE_URL}/auth/password-reset-confirm/`,
+    withAuthFetchOptions(
+      {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ uid, token, new_password, password_confirm }),
-  });
+      },
+      { needsCsrf: true },
+    ),
+  );
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(extractApiError(data, "Password reset failed"));
   return data;
 }
 
 export async function changePassword(old_password, new_password, password_confirm) {
-  const response = await fetch(`${API_BASE_URL}/auth/change-password/`, {
+  await ensureCsrfCookie();
+  const response = await fetch(
+    `${API_BASE_URL}/auth/change-password/`,
+    withAuthFetchOptions(
+      {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       ...getAuthHeaders(),
     },
     body: JSON.stringify({ old_password, new_password, password_confirm }),
-  });
+      },
+      { needsCsrf: true },
+    ),
+  );
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(extractApiError(data, "Password change failed"));
   return data;
 }
 
 export async function fetchMe() {
-  const response = await fetch(`${API_BASE_URL}/auth/me/`, {
+  const response = await fetch(
+    `${API_BASE_URL}/auth/me/`,
+    withAuthFetchOptions({
     headers: {
       ...getAuthHeaders(),
     },
-  });
+    }),
+  );
 
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
+    if (response.status === 401) {
+      clearLocalAuthTokens();
+      window.dispatchEvent(new Event("auth-changed"));
+    }
     throw new Error(data.detail || "Failed to fetch user");
   }
 
@@ -145,22 +247,40 @@ export async function fetchMe() {
 }
 
 export async function updateMe(payload) {
-  const response = await fetch(`${API_BASE_URL}/auth/me/`, {
+  await ensureCsrfCookie();
+  const response = await fetch(
+    `${API_BASE_URL}/auth/me/`,
+    withAuthFetchOptions(
+      {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
       ...getAuthHeaders(),
     },
     body: JSON.stringify(payload),
-  });
+      },
+      { needsCsrf: true },
+    ),
+  );
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(extractApiError(data, "Failed to update profile"));
   return data;
 }
 
-export function logoutUser() {
-    localStorage.removeItem("access");
-    localStorage.removeItem("refresh");
+export async function logoutUser() {
+  if (USE_COOKIE_AUTH) {
+    await ensureCsrfCookie();
+    await fetch(
+      `${API_BASE_URL}/auth/logout/`,
+      withAuthFetchOptions(
+        {
+          method: "POST",
+        },
+        { needsCsrf: true },
+      ),
+    );
+  }
+  clearLocalAuthTokens();
 }
 
 
@@ -212,22 +332,32 @@ export async function fetchLocations() {
 }
 
 export async function fetchWatchlist() {
-  const response = await fetch(`${API_BASE_URL}/watchlist/`, {
-    headers: { ...getAuthHeaders() },
-  });
+  const response = await fetch(
+    `${API_BASE_URL}/watchlist/`,
+    withAuthFetchOptions({
+      headers: { ...getAuthHeaders() },
+    }),
+  );
   if (!response.ok) throw new Error("Failed to fetch watchlist");
   return response.json();
 }
 
 export async function addToWatchlist(vacancyId) {
-  const response = await fetch(`${API_BASE_URL}/watchlist/`, {
+  await ensureCsrfCookie();
+  const response = await fetch(
+    `${API_BASE_URL}/watchlist/`,
+    withAuthFetchOptions(
+      {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       ...getAuthHeaders(),
     },
     body: JSON.stringify({ vacancy_id: vacancyId }),
-  });
+      },
+      { needsCsrf: true },
+    ),
+  );
 
   const data = await response.json();
   if (!response.ok) throw new Error(data.detail || "Failed to add to watchlist");
@@ -235,10 +365,17 @@ export async function addToWatchlist(vacancyId) {
 }
 
 export async function removeFromWatchlist(id) {
-  const response = await fetch(`${API_BASE_URL}/watchlist/${id}/`, {
-    method: "DELETE",
-    headers: { ...getAuthHeaders() },
-  });
+  await ensureCsrfCookie();
+  const response = await fetch(
+    `${API_BASE_URL}/watchlist/${id}/`,
+    withAuthFetchOptions(
+      {
+        method: "DELETE",
+        headers: { ...getAuthHeaders() },
+      },
+      { needsCsrf: true },
+    ),
+  );
   if (!response.ok) throw new Error("Failed to remove from watchlist");
   return true;
 }

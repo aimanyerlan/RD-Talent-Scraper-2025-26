@@ -52,7 +52,11 @@ export default function HomePage() {
             Discover research and development opportunities from top companies.
             Search, filter, and track the most in-demand skills in one place.
           </p>
-          <Link to="/vacancies" className="btn btn--primary" style={{ marginTop: "var(--spacing-lg)" }}>
+          <Link
+            to="/vacancies"
+            className="btn btn--primary btn--touch"
+            style={{ marginTop: "var(--spacing-lg)" }}
+          >
             Browse All Jobs
           </Link>
         </section>
@@ -174,56 +178,21 @@ export default function HomePage() {
       </div>
 
       {showAllSkills && (
-        <div
-          className="modal-overlay"
-          onClick={() => setShowAllSkills(false)}
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}
-        >
-          <div
-            className="modal-content"
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              backgroundColor: "white",
-              borderRadius: "12px",
-              maxWidth: "1000px",
-              width: "90%",
-              maxHeight: "80vh",
-              display: "flex",
-              flexDirection: "column",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                padding: "20px",
-                borderBottom: "1px solid #eee",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <h2 style={{ margin: 0 }}>All Skills</h2>
+        <div className="skills-modal-overlay" onClick={() => setShowAllSkills(false)}>
+          <div className="skills-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="skills-modal__header">
+              <h2 className="skills-modal__title">All Skills</h2>
               <button
                 type="button"
                 onClick={() => setShowAllSkills(false)}
-                style={{ fontSize: "24px", border: "none", background: "none", cursor: "pointer" }}
+                className="skills-modal__close"
+                aria-label="Close all skills"
               >
                 ×
               </button>
             </div>
-            <div style={{ padding: "20px", overflowY: "auto", flex: 1 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "15px" }}>
+            <div className="skills-modal__body">
+              <div className="skills-modal__grid">
                 {allSkills.map((item, index) => (
                   <Link
                     key={`${item.skill}-${index}`}
